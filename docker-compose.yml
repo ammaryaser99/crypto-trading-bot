@@ -1,0 +1,32 @@
+services:
+  freqtrade:
+    image: freqtradeorg/freqtrade:stable
+    container_name: aggressive-momentum-freqtrade
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Freqtrade maps FREQTRADE__SECTION__KEY environment variables onto config.
+      # This keeps exchange and dashboard secrets out of config.json and Git.
+      FREQTRADE__EXCHANGE__NAME: ${EXCHANGE_NAME:-binance}
+      FREQTRADE__EXCHANGE__KEY: ${EXCHANGE_KEY:-}
+      FREQTRADE__EXCHANGE__SECRET: ${EXCHANGE_SECRET:-}
+      FREQTRADE__EXCHANGE__PASSWORD: ${EXCHANGE_PASSWORD:-}
+      FREQTRADE__TELEGRAM__ENABLED: ${TELEGRAM_ENABLED:-false}
+      FREQTRADE__TELEGRAM__TOKEN: ${TELEGRAM_TOKEN:-}
+      FREQTRADE__TELEGRAM__CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      FREQTRADE__API_SERVER__USERNAME: ${API_USERNAME:-freqtrade}
+      FREQTRADE__API_SERVER__PASSWORD: ${API_PASSWORD:-CHANGE_ME}
+      FREQTRADE__API_SERVER__JWT_SECRET_KEY: ${API_JWT_SECRET_KEY:-CHANGE_ME_TO_A_32_CHARACTER_RANDOM_STRING}
+    volumes:
+      - ./user_data:/freqtrade/user_data
+    # Published only to the VPS loopback interface. Do not change this to
+    # 0.0.0.0 without a firewall and an authenticated reverse proxy.
+    ports:
+      - "127.0.0.1:8080:8080"
+    command: >
+      trade
+      --logfile /freqtrade/user_data/logs/freqtrade.log
+      --db-url sqlite:////freqtrade/user_data/tradesv3.sqlite
+      --config /freqtrade/user_data/config.json
+      --strategy AggressiveMomentumScalper

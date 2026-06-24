@@ -1,0 +1,162 @@
+{
+  "$schema": "https://schema.freqtrade.io/schema.json",
+  "bot_name": "aggressive-momentum-paper",
+  "initial_state": "running",
+  "force_entry_enable": false,
+  "internals": {
+    "process_throttle_secs": 5
+  },
+  "dry_run": true,
+  "dry_run_wallet": 200,
+  "cancel_open_orders_on_exit": true,
+  "trading_mode": "spot",
+  "margin_mode": "",
+  "max_open_trades": 4,
+  "stake_currency": "USDT",
+  "stake_amount": "unlimited",
+  "tradable_balance_ratio": 0.9,
+  "amend_last_stake_amount": false,
+  "last_stake_amount_min_ratio": 0.5,
+  "fiat_display_currency": "USD",
+  "timeframe": "5m",
+  "strategy": "AggressiveMomentumScalper",
+  "strategy_path": "/freqtrade/user_data/strategies",
+  "stoploss": -0.055,
+  "trailing_stop": true,
+  "trailing_stop_positive": 0.012,
+  "trailing_stop_positive_offset": 0.022,
+  "trailing_only_offset_is_reached": true,
+  "minimal_roi": {
+    "0": 0.025,
+    "30": 0.018,
+    "90": 0.01,
+    "180": 0
+  },
+  "unfilledtimeout": {
+    "entry": 5,
+    "exit": 5,
+    "exit_timeout_count": 0,
+    "unit": "minutes"
+  },
+  "entry_pricing": {
+    "price_side": "same",
+    "use_order_book": true,
+    "order_book_top": 1,
+    "price_last_balance": 0.0,
+    "check_depth_of_market": {
+      "enabled": false,
+      "bids_to_ask_delta": 1
+    }
+  },
+  "exit_pricing": {
+    "price_side": "same",
+    "use_order_book": true,
+    "order_book_top": 1
+  },
+  "order_types": {
+    "entry": "limit",
+    "exit": "limit",
+    "emergency_exit": "market",
+    "force_exit": "market",
+    "force_entry": "market",
+    "stoploss": "market",
+    "stoploss_on_exchange": false
+  },
+  "order_time_in_force": {
+    "entry": "gtc",
+    "exit": "gtc"
+  },
+  "exchange": {
+    "name": "binance",
+    "key": "",
+    "secret": "",
+    "password": "",
+    "ccxt_config": {
+      "enableRateLimit": true
+    },
+    "ccxt_async_config": {
+      "enableRateLimit": true,
+      "rateLimit": 50
+    },
+    "pair_whitelist": [
+      ".*/USDT"
+    ],
+    "pair_blacklist": [
+      ".*(UP|DOWN|BULL|BEAR)/USDT",
+      "(BUSD|USDC|TUSD|FDUSD|DAI)/USDT"
+    ]
+  },
+  "pairlists": [
+    {
+      "method": "VolumePairList",
+      "number_assets": 20,
+      "sort_key": "quoteVolume",
+      "min_value": 5000000,
+      "refresh_period": 1800
+    },
+    {
+      "method": "AgeFilter",
+      "min_days_listed": 30
+    },
+    {
+      "method": "PrecisionFilter"
+    },
+    {
+      "method": "PriceFilter",
+      "low_price_ratio": 0.01
+    },
+    {
+      "method": "SpreadFilter",
+      "max_spread_ratio": 0.004
+    },
+    {
+      "method": "RangeStabilityFilter",
+      "lookback_days": 3,
+      "min_rate_of_change": 0.02,
+      "max_rate_of_change": 1.0,
+      "refresh_period": 1440
+    },
+    {
+      "method": "VolatilityFilter",
+      "lookback_days": 3,
+      "min_volatility": 0.02,
+      "max_volatility": 0.6,
+      "refresh_period": 1440
+    }
+  ],
+  "protections": [
+    {
+      "method": "CooldownPeriod",
+      "stop_duration_candles": 5
+    },
+    {
+      "method": "StoplossGuard",
+      "lookback_period_candles": 48,
+      "trade_limit": 2,
+      "stop_duration_candles": 48,
+      "only_per_pair": false
+    },
+    {
+      "method": "MaxDrawdown",
+      "lookback_period_candles": 288,
+      "trade_limit": 10,
+      "stop_duration_candles": 72,
+      "max_allowed_drawdown": 0.12
+    }
+  ],
+  "telegram": {
+    "enabled": false,
+    "token": "",
+    "chat_id": ""
+  },
+  "api_server": {
+    "enabled": true,
+    "listen_ip_address": "0.0.0.0",
+    "listen_port": 8080,
+    "verbosity": "error",
+    "jwt_secret_key": "CHANGE_THIS_USING_API_JWT_SECRET_KEY_IN_DOTENV",
+    "CORS_origins": [],
+    "username": "freqtrade",
+    "password": "CHANGE_THIS_USING_API_PASSWORD_IN_DOTENV"
+  }
+}

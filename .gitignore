@@ -1,0 +1,30 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Freqtrade runtime state
+user_data/data/
+user_data/logs/
+user_data/backtest_results/
+user_data/plot/
+user_data/*.sqlite
+user_data/*.sqlite-journal
+user_data/*.sqlite-shm
+user_data/*.sqlite-wal
+user_data/hyperopts/
+user_data/notebooks/
+
+# Python/editor artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+.idea/
+.vscode/
+*.swp
+.DS_Store
