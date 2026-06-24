@@ -42,6 +42,34 @@ class AggressiveMomentumScalper(IStrategy):
     }
     use_custom_roi = True
 
+    @property
+    def protections(self) -> list[dict]:
+        """Session circuit breakers required by Freqtrade 2026.5 and newer.
+
+        Keep these in the strategy (rather than config.json) so strategy
+        behavior, risk limits, and backtests remain coupled.
+        """
+        return [
+            # Prevent immediate revenge re-entry into a just-closed pair.
+            {"method": "CooldownPeriod", "stop_duration_candles": 5},
+            # Two stoploss-type exits in four hours lock all entries for four hours.
+            {
+                "method": "StoplossGuard",
+                "lookback_period_candles": 48,
+                "trade_limit": 2,
+                "stop_duration_candles": 48,
+                "only_per_pair": False,
+            },
+            # A 12% drawdown across the prior 24 hours pauses new entries for six hours.
+            {
+                "method": "MaxDrawdown",
+                "lookback_period_candles": 288,
+                "trade_limit": 10,
+                "stop_duration_candles": 72,
+                "max_allowed_drawdown": 0.12,
+            },
+        ]
+
     # Limit orders reduce taker fees/slippage in a scalping strategy. Emergency exits are
     # configured as market orders in config.json so a genuine stop is not left hanging.
     order_types = {
