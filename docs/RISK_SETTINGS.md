@@ -6,17 +6,17 @@ This is deliberately an aggressive **paper-only** profile, not a safe production
 
 - `dry_run: true` makes every trade simulated. Do not change this during the experiment.
 - `dry_run_wallet: 200` starts the test at 200 USDT.
-- `max_open_trades: 4` limits simultaneous exposure. It is deliberately below the top-20 dynamic pair universe.
-- `tradable_balance_ratio: 0.90` leaves 10% unallocated for fees, rounding, and safety.
-- `stake_amount: unlimited` lets Freqtrade dynamically split available capital among the four slots instead of committing the whole wallet to one signal.
+- `max_open_trades: 5` limits simultaneous exposure while allowing the one-week paper test to stay active.
+- `tradable_balance_ratio: 0.95` leaves 5% unallocated for fees, rounding, and safety.
+- `stake_amount: unlimited` lets Freqtrade dynamically split available capital among the five slots instead of committing the whole wallet to one signal.
 
-With a 200 USDT simulated wallet, a fully allocated slot is normally about 45-50 USDT. That is high enough to make a one-week test meaningful without putting the entire wallet into one coin.
+With a 200 USDT simulated wallet, a fully allocated slot is normally about 35-40 USDT. That is high enough to make a one-week test visible without putting the entire wallet into one coin.
 
 ## Per-trade loss and profit handling
 
-- Hard stoploss: `-5.5%`. This is wide enough for a volatile 5-minute crypto move, but it is still a hard exit rather than an unlimited hold.
-- Trailing stop: starts protecting a trade only after `+2.2%`; it trails at `1.2%`. This avoids instantly choking a breakout while giving back less when it reverses.
-- ROI schedule: targets 2.5% in the first 30 minutes, then reduces to 1.8%, 1.0%, and finally exits on the strategy signal after three hours. Scalps that cannot move should release their capital.
+- Hard stoploss: `-6.5%`. This is wider and higher risk than the first profile, but it is still a hard exit rather than an unlimited hold.
+- Trailing stop: starts protecting a trade only after `+1.8%`; it trails at `0.9%`. This takes profits sooner during a fast paper test.
+- ROI schedule: targets 1.8% early, then reduces to 1.2%, 0.6%, and finally releases capital after two hours. Pullback entries use slightly smaller ROI targets.
 - Fast exit: RSI weakness, a MACD bearish cross below the fast EMA, or a weak return below the Bollinger midpoint triggers an exit signal.
 
 ## Session-level circuit breakers
@@ -25,9 +25,9 @@ Freqtrade protections are evaluated from completed trades and use 5-minute candl
 
 | Protection | Setting | Purpose |
 | --- | --- | --- |
-| CooldownPeriod | 5 candles (25 minutes) | Stops immediate revenge re-entry on the same pair after a close. |
-| StoplossGuard | 2 stoplosses in 48 candles | Pauses all new entries for 4 hours after two stoploss-type losses. |
-| MaxDrawdown | 12% over 288 candles | Treats 24 hours as the daily loss window; pauses entries for 6 hours after enough closed trades show a 12% drawdown. |
+| CooldownPeriod | 2 candles (10 minutes) | Short pause after a close so the bot can remain active without instant churn. |
+| StoplossGuard | 3 stoplosses in 36 candles | Pauses all new entries for 2 hours after repeated stoploss-type losses. |
+| MaxDrawdown | 15% over 288 candles | Treats 24 hours as the daily loss window; pauses entries for 4 hours after enough closed trades show a 15% drawdown. |
 
 The daily drawdown threshold is intentionally a circuit breaker, not a target. If it trips, inspect the market and logs; do not simply turn it off mid-test.
 

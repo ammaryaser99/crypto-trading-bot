@@ -16,7 +16,7 @@ from pandas import DataFrame
 
 
 class AggressiveMomentumScalper(IStrategy):
-    """Trade high-volume momentum only when the higher timeframe agrees."""
+    """Trade active 5m momentum and pullbacks when the higher timeframe is acceptable."""
 
     INTERFACE_VERSION = 3
 
@@ -26,21 +26,22 @@ class AggressiveMomentumScalper(IStrategy):
     process_only_new_candles = True
     startup_candle_count = 240
 
-    # A hard circuit breaker. The trailing configuration locks gains only after +2.2%.
-    stoploss = -0.055
+    # A hard circuit breaker. This is intentionally aggressive for paper testing.
+    stoploss = -0.065
     trailing_stop = True
-    trailing_stop_positive = 0.012
-    trailing_stop_positive_offset = 0.022
+    trailing_stop_positive = 0.009
+    trailing_stop_positive_offset = 0.018
     trailing_only_offset_is_reached = True
 
     # Fallback ROI schedule. custom_roi below makes the same intent explicit in code.
     minimal_roi = {
-        "0": 0.025,
-        "30": 0.018,
-        "90": 0.010,
-        "180": 0.0,
+        "0": 0.018,
+        "20": 0.012,
+        "60": 0.006,
+        "120": 0.0,
     }
     use_custom_roi = True
+    use_exit_signal = True
 
     @property
     def protections(self) -> list[dict]:
@@ -51,22 +52,22 @@ class AggressiveMomentumScalper(IStrategy):
         """
         return [
             # Prevent immediate revenge re-entry into a just-closed pair.
-            {"method": "CooldownPeriod", "stop_duration_candles": 5},
-            # Two stoploss-type exits in four hours lock all entries for four hours.
+            {"method": "CooldownPeriod", "stop_duration_candles": 2},
+            # Three stoploss-type exits in three hours lock all entries for two hours.
             {
                 "method": "StoplossGuard",
-                "lookback_period_candles": 48,
-                "trade_limit": 2,
-                "stop_duration_candles": 48,
+                "lookback_period_candles": 36,
+                "trade_limit": 3,
+                "stop_duration_candles": 24,
                 "only_per_pair": False,
             },
-            # A 12% drawdown across the prior 24 hours pauses new entries for six hours.
+            # A 15% drawdown across the prior 24 hours pauses new entries for four hours.
             {
                 "method": "MaxDrawdown",
                 "lookback_period_candles": 288,
                 "trade_limit": 10,
-                "stop_duration_candles": 72,
-                "max_allowed_drawdown": 0.12,
+                "stop_duration_candles": 48,
+                "max_allowed_drawdown": 0.15,
             },
         ]
 
@@ -121,42 +122,66 @@ class AggressiveMomentumScalper(IStrategy):
         return dataframe
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        """Enter only liquid, expanding 5m momentum aligned with the 1h trend."""
+        """Enter active liquid momentum and trend pullbacks.
+
+        This version is intentionally more active for a short paper experiment:
+        it accepts a softer 1h trend and allows pullback entries, while still
+        requiring non-dead volume and ATR so it does not buy totally flat chop.
+        """
         trend_confirmed = (
             (dataframe["ema_fast"] > dataframe["ema_slow"])
-            & (dataframe["close"] > dataframe["ema_fast"])
-            & (dataframe["ema_fast_1h"] > dataframe["ema_slow_1h"])
-            & (dataframe["close"] > dataframe["ema_fast_1h"])
-            & (dataframe["rsi_1h"] > 50)
+            & (dataframe["close"] > dataframe["ema_slow"])
+            & (
+                (dataframe["ema_fast_1h"] > dataframe["ema_slow_1h"])
+                | (
+                    (dataframe["close"] > dataframe["ema_fast_1h"])
+                    & (dataframe["rsi_1h"] > 45)
+                )
+            )
         )
-        momentum_confirmed = (
-            (dataframe["rsi"] > 55)
-            & (dataframe["rsi"] < 78)
+        breakout_confirmed = (
+            (dataframe["rsi"] > 50)
+            & (dataframe["rsi"] < 82)
             & (dataframe["macd"] > dataframe["macdsignal"])
-            & (dataframe["macdhist"] > dataframe["macdhist"].shift(1))
+            & (dataframe["macdhist"] > 0)
             & (dataframe["close"] > dataframe["bb_middle"])
-            & (dataframe["bb_width"] > 0.015)
+            & (dataframe["bb_width"] > 0.008)
+        )
+        pullback_confirmed = (
+            (dataframe["rsi"] > 42)
+            & (dataframe["rsi"] < 68)
+            & (dataframe["close"] > dataframe["ema_slow"])
+            & (dataframe["close"] <= dataframe["ema_fast"] * 1.01)
+            & (dataframe["macdhist"] > dataframe["macdhist"].shift(1))
+            & (dataframe["bb_width"] > 0.006)
         )
         liquid_and_tradeable = (
-            (dataframe["volume"] > dataframe["volume_mean_20"] * 1.25)
-            # Avoid dead markets and violent one-candle chaos. 0.35%-5% ATR is a
-            # practical aggressive range for 5m liquid spot pairs.
-            & (dataframe["atr_pct"] > 0.0035)
-            & (dataframe["atr_pct"] < 0.05)
+            (dataframe["volume"] > dataframe["volume_mean_20"] * 0.85)
+            # Avoid dead markets and violent one-candle chaos. 0.15%-7% ATR is
+            # deliberately active, but still avoids completely flat candles.
+            & (dataframe["atr_pct"] > 0.0015)
+            & (dataframe["atr_pct"] < 0.07)
             & (dataframe["volume"] > 0)
         )
         # A close above the upper band is allowed only with exceptional volume.
-        continuation_is_supported = (dataframe["close"] <= dataframe["bb_upper"]) | (
-            dataframe["volume"] > dataframe["volume_mean_20"] * 1.8
+        continuation_is_supported = (dataframe["close"] <= dataframe["bb_upper"] * 1.006) | (
+            dataframe["volume"] > dataframe["volume_mean_20"] * 1.30
         )
 
         dataframe.loc[
             trend_confirmed
-            & momentum_confirmed
+            & breakout_confirmed
             & liquid_and_tradeable
             & continuation_is_supported,
             ["enter_long", "enter_tag"],
-        ] = (1, "momentum_breakout")
+        ] = (1, "momentum_breakout_active")
+
+        dataframe.loc[
+            trend_confirmed
+            & pullback_confirmed
+            & liquid_and_tradeable,
+            ["enter_long", "enter_tag"],
+        ] = (1, "trend_pullback_active")
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
@@ -165,10 +190,10 @@ class AggressiveMomentumScalper(IStrategy):
             dataframe["macd"].shift(1) >= dataframe["macdsignal"].shift(1)
         )
         momentum_failed = (
-            (dataframe["rsi"] < 46)
+            (dataframe["rsi"] < 43)
             | (macd_cross_down & (dataframe["close"] < dataframe["ema_fast"]))
             | (
-                (dataframe["close"] < dataframe["bb_middle"])
+                (dataframe["close"] < dataframe["bb_middle"] * 0.997)
                 & (dataframe["volume"] < dataframe["volume_mean_20"])
             )
         )
@@ -186,10 +211,18 @@ class AggressiveMomentumScalper(IStrategy):
         **kwargs: object,
     ) -> Optional[float]:
         """Demand a quick win early, then release capital if momentum takes too long."""
+        if entry_tag == "trend_pullback_active":
+            if trade_duration < 20:
+                return 0.014
+            if trade_duration < 60:
+                return 0.009
+            if trade_duration < 120:
+                return 0.004
+            return 0.0
         if trade_duration < 30:
-            return 0.025
-        if trade_duration < 90:
             return 0.018
-        if trade_duration < 180:
-            return 0.010
+        if trade_duration < 60:
+            return 0.012
+        if trade_duration < 120:
+            return 0.006
         return 0.0

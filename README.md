@@ -1,15 +1,15 @@
 # Aggressive Momentum Freqtrade Paper Bot
 
-An aggressive, long-only Freqtrade spot bot for a **seven-day paper-trading experiment**. It scans liquid USDT markets for 5-minute momentum breakouts and confirms the broader 1-hour trend before entering. RSI, EMA trend, MACD, Bollinger Bands, volume, and ATR all participate in the decision.
+An aggressive, long-only Freqtrade spot bot for a **seven-day paper-trading experiment**. It scans liquid USDT markets for active 5-minute momentum breakouts and trend pullbacks, with a softer 1-hour trend check before entering. RSI, EMA trend, MACD, Bollinger Bands, volume, and ATR all participate in the decision.
 
 > **Experimental and high risk. Paper trading only.** This repository starts with `dry_run: true`, a 200 USDT simulated wallet, and no real API keys. It is not financial advice and does not promise profit. Do not enable live trading until you have reviewed backtests, paper results, fees/slippage, and every risk setting.
 
 ## What is included
 
 - Official `freqtradeorg/freqtrade:stable` Docker deployment.
-- `AggressiveMomentumScalper`: 5m trend/momentum entries with 1h trend confirmation and fast failure exits.
+- `AggressiveMomentumScalper`: active 5m breakout and pullback entries with 1h trend confirmation and fast failure exits.
 - Dynamic liquid-USDT universe using `VolumePairList`, plus a static ten-pair fallback for reproducible data downloads/backtests.
-- Controlled aggressive risk: four maximum positions, 5.5% hard stop, gain-protecting trailing stop, cooldown, stoploss guard, and 24-hour 12% max-drawdown circuit breaker.
+- Controlled aggressive risk: five maximum positions, 6.5% hard stop, gain-protecting trailing stop, cooldown, stoploss guard, and 24-hour 15% max-drawdown circuit breaker.
 - Optional Telegram notifications and a loopback-only API/Web UI, configured through `.env` rather than source control.
 - Download, backtest, start, stop, and status scripts.
 
@@ -109,7 +109,7 @@ Backtests are not live performance. They can understate spread, latency, partial
 
 ## Pairs
 
-Normal paper operation uses a dynamic `VolumePairList`: the 20 largest liquid USDT markets, then age, precision, price, spread, stability, and volatility filters remove bad candidates. Leveraged token patterns and stablecoin-to-USDT markets are excluded.
+Normal paper operation uses a dynamic `VolumePairList`: up to 50 liquid USDT markets, then precision, price, and spread filters remove bad candidates. The lower volume threshold is friendlier to Kraken's smaller USDT universe. Leveraged token patterns and stablecoin-to-USDT markets are excluded.
 
 For a fixed production-like paper universe, replace the `pairlists` block in `user_data/config.json` with the `StaticPairList` block from `user_data/config.static-pairs.json`, or launch a one-off command with both config files as shown in `scripts/backtest.sh`.
 
@@ -118,6 +118,7 @@ For a fixed production-like paper universe, replace the `pairlists` block in `us
 1. Day 0: run a data download and at least one backtest. Confirm dry-run in logs.
 2. Days 1-2: check logs and dashboard twice daily; confirm expected pairs and no exchange/API errors.
 3. Every day: record equity, closed trades, win rate, fees, average trade duration, drawdown, and longest losing streak.
+   With Telegram enabled, use `/daily 7`, `/profit`, `/stats`, `/performance`, and `/whitelist` to review daily results and confirm the bot is watching more than one pair.
 4. When a protection triggers: leave it enabled, capture the surrounding market conditions, and investigate rather than immediately restarting the bot.
 5. Day 7: compare actual paper fills with backtest assumptions and decide whether the strategy deserves more paper testing. Do not use a single seven-day result as permission for live money.
 
